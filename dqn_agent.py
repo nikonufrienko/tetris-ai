@@ -3,7 +3,7 @@ from keras.layers import Dense
 from collections import deque
 import numpy as np
 import random
-
+import json
 # Deep Q Learning Agent + Maximin
 #
 # This version only provides only value per input,
@@ -33,15 +33,17 @@ class DQNAgent:
     def __init__(self, state_size, mem_size=10000, discount=0.95,
                  epsilon=1, epsilon_min=0, epsilon_stop_episode=500,
                  n_neurons=[32,32], activations=['relu', 'relu', 'linear'],
-                 loss='mse', optimizer='adam', replay_start_size=None):
+                 loss='mse', optimizer='adam', replay_start_size=None, model=None):
 
         assert len(activations) == len(n_neurons) + 1
 
         self.state_size = state_size
         self.memory = deque(maxlen=mem_size)
+        self.mem_size = mem_size
         self.discount = discount
         self.epsilon = epsilon
         self.epsilon_min = epsilon_min
+        self.epsilon_stop_episode=epsilon_stop_episode
         self.epsilon_decay = (self.epsilon - self.epsilon_min) / (epsilon_stop_episode)
         self.n_neurons = n_neurons
         self.activations = activations
@@ -50,8 +52,50 @@ class DQNAgent:
         if not replay_start_size:
             replay_start_size = mem_size / 2
         self.replay_start_size = replay_start_size
-        self.model = self._build_model()
+        if model == None:
+            print('CREATING NEW MODEL')
+            self.model = self._build_model()
+        else:
+            print('LOADING MODEL...')
+            self.model = model
 
+
+    def save(self, json_path, model_path):
+        data = dict()
+        data['state_size'] = self.state_size
+        data['mem_size'] = self.mem_size
+        data['discount'] = self.discount
+        data['epsilon'] = self.epsilon
+        data['epsilon_min'] = self.epsilon_min
+        data['epsilon_stop_episode'] = self.epsilon_stop_episode
+        data['n_neurons'] = self.n_neurons
+        data['activations'] = self.activations
+        data['loss'] = self.loss
+        data['optimizer'] = self.optimizer
+        data['activations'] = self.activations
+        data['replay_start_size'] = self.replay_start_size
+        json.dump(data, open(json_path, 'w'))
+        self.model.save(model_path)
+
+    @classmethod
+    def load(cls, json_path, model_path):
+        data = dict()
+        with open(json_path, 'r') as fp:
+            data = json.load(fp)
+        state_size = data['state_size']
+        mem_size = maxlen=data['mem_size']
+        discount = data['discount']
+        epsilon = data['epsilon']
+        epsilon_min = data['epsilon_min']
+        epsilon_stop_episode = data['epsilon_stop_episode']
+        n_neurons = data['n_neurons']
+        activations = data['activations']
+        loss = data['loss']
+        optimizer = data['optimizer']
+        activations = data['activations']
+        replay_start_size = data['replay_start_size']
+        model = load_model(model_path)
+        return cls(state_size, mem_size, discount, epsilon, epsilon_min, epsilon_stop_episode, n_neurons, activations, loss, optimizer, replay_start_size, model=model)
 
     def _build_model(self):
         '''Builds a Keras deep neural network model'''
